@@ -1,0 +1,4 @@
+node_modules/
+*package-lock*
+study_materials/
+code_wars_problems/
