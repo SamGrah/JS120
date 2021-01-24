@@ -47,7 +47,6 @@ class Deck {
 class Participant {
   constructor() {
     this.score = 0;
-    this.roundsWon = 0;
     this.hand = [];
   }
 
@@ -68,14 +67,6 @@ class Participant {
     return this.score;
   }
 
-  getRoundsWon() {
-    return this.roundsWon;
-  }
-
-  incrementRoundsWon() {
-    this.roundsWon += 1;
-  }
-
   addCardToHand(card) {
     this.hand.push(card);
   }
@@ -93,6 +84,30 @@ class Participant {
 class Player extends Participant {
   constructor() {
     super();
+    this.cash = 5;
+  }
+
+  static RICH_AMOUNT = 10;
+  static BROKE_AMOUT = 0;
+
+  getCash() {
+    return this.cash;
+  }
+
+  takeDollar() {
+    this.cash -= 1;
+  }
+
+  giveDollar() {
+    this.cash += 1;
+  }
+
+  isRich() {
+    return this.cash === Player.RICH_AMOUNT;
+  }
+
+  isBroke() {
+    return this.cash === Player.BROKE_AMOUT;
   }
 
   displayHand() {
@@ -144,14 +159,13 @@ class Dealer extends Participant {
 
 class TwentyOneGame {
   constructor() {
-    this.round = 0;
     this.player = new Player();
     this.dealer = new Dealer();
     this.deck = new Deck();
+    this.round = 0;
     readline.setPrompt('==> ');
   }
 
-  static ROUNDS_PER_MATCH = 5;
   static MATCH_WINS_THRESHOLD = 3;
 
   static validateEntry(entry, validEntries) {
@@ -164,13 +178,14 @@ class TwentyOneGame {
   }
 
   start() {
+    this.displayWelcomMessage();
     while (true) {
       while (true) {
         this.shuffleCards();
         this.dealCards();
         this.playerTurn();
         this.dealerTurn();
-        this.updateWinnerScore();
+        this.updatePlayerCash();
         this.displayRoundResult();
         if (this.matchOver()) break;
       }
@@ -218,11 +233,12 @@ class TwentyOneGame {
 
   dealerTurn() {
     this.dealer.showHand();
+    this.dealer.updateHandScore();
     if (this.player.isBusted()) return;
     while (true) {
-      this.dealer.updateHandScore();
       if (this.dealer.getScore() >= Dealer.DEALER_HIT_THRESHOLD) break;
       this.dealer.addCardToHand(this.deck.randomlyDrawFrom());
+      this.dealer.updateHandScore();
     }
   }
 
@@ -230,10 +246,10 @@ class TwentyOneGame {
     return console.log("==> " + message);
   }
 
-  updateWinnerScore() {
+  updatePlayerCash() {
     let winner = this.determineWinner();
-    if (winner === 'player') this.player.incrementRoundsWon();
-    else if (winner === 'dealer') this.dealer.incrementRoundsWon();
+    if (winner === 'player') this.player.giveDollar();
+    else if (winner === 'dealer') this.player.takeDollar();
   }
 
   determineWinner() {
@@ -248,28 +264,25 @@ class TwentyOneGame {
   }
 
   matchOver() {
-    return this.round === TwentyOneGame.ROUNDS_PER_MATCH ||
-           this.player.getRoundsWon() === TwentyOneGame.MATCH_WINS_THRESHOLD ||
-           this.dealer.getRoundsWon() === TwentyOneGame.MATCH_WINS_THRESHOLD;
+    return this.player.isRich() || this.player.isBroke();
   }
 
   matchStatsReset() {
-    this.round = 0;
+    this.round = 1;
     this.player = new Player();
     this.dealer = new Dealer();
   }
 
   displayRoundInfo() {
-    console.log(`\n\n            ROUND ${this.round}\n` +
+    console.log(`\n\n               ROUND ${this.round}\n` +
     '========================================');
   }
 
   displayGameHeader() {
     console.clear();
-    console.log('   TWENTY-ONE : Best of 5 Rounds\n' +
+    console.log('              TWENTY-ONE\n' +
                 '========================================');
-    console.log(`  Player Wins: ${this.player.getRoundsWon()}   ` +
-                `Dealer Wins: ${this.dealer.getRoundsWon()}`);
+    console.log(`            Player Cash: $${this.player.getCash()}`);
   }
 
   displayGameInfo() {
@@ -279,11 +292,6 @@ class TwentyOneGame {
     this.player.displayHand();
   }
 
-  displayGoodbyeMessage() {
-    console.clear();
-    console.log('Have a nice day :)');
-  }
-
   displayRoundResult() {
     this.displayGameInfo();
     let winner = this.determineWinner();
@@ -291,18 +299,18 @@ class TwentyOneGame {
     let dealerScore = this.dealer.getScore();
 
     console.log('');
-    if (winner === 'player') {
-      if (this.dealer.isBusted()) console.log('Dealer busted. Player Wins.');
-      else console.log(`Player defeats dealer ${playerScore} to ${dealerScore}`);
+    if (this.dealer.isBusted()) console.log(`Dealer busted at ${dealerScore}. Player Wins.`);
+    else if (this.player.isBusted()) console.log(`Player busted at ${playerScore}. Dealer Wins.`);
+    else if (winner === 'player') {
+      console.log(`Player defeats dealer ${playerScore} to ${dealerScore}`);
     } else if (winner === 'dealer') {
-      if (this.player.isBusted()) console.log('Player busted. Dealer Wins.');
-      else console.log(`Dealer defeats player ${dealerScore} to ${playerScore}`);
-    } else {
+      console.log(`Dealer defeats player ${dealerScore} to ${playerScore}`);
+    } else if (winner === 'tie') {
       console.log(`Round ends in a ${playerScore} to ${dealerScore} tie!`);
     }
 
     console.log('');
-    this.prompt('Press Enter to continue');
+    this.prompt('Press Enter to continue to next round');
     readline.question();
   }
 
@@ -310,14 +318,10 @@ class TwentyOneGame {
     this.displayGameHeader();
     console.log('');
 
-    let playerWins = this.player.getRoundsWon();
-    let dealerWins = this.dealer.getRoundsWon();
-    if (playerWins === dealerWins) {
-      console.log('Player and Dealer tie in best of 5 matchup!');
-    } else if (playerWins > dealerWins) {
-      console.log('Player deafeats Dealer in best of 5 matchup!');
+    if (this.player.isRich()) {
+      console.log("You've won $5! Quit while you're ahead!");
     } else {
-      console.log('Dealer deafeats Player in best of 5 matchup!');
+      console.log("No more money to bet with...you lose :(");
     }
   }
 
@@ -327,6 +331,22 @@ class TwentyOneGame {
     let answer = readline.prompt().toLowerCase();
     answer = TwentyOneGame.validateEntry(answer, ['y', 'n']);
     return answer === 'y';
+  }
+
+  displayWelcomMessage() {
+    console.clear();
+    console.log('Welcome to Twenty-One!\n');
+    console.log('You begin the game with $5. For each round you win\n' +
+                'a dollar will be added to your cash pile and a \n' +
+                'dollar removed for each round you lose.\n' +
+                'The game will end if your cash pile is $0 or $10.\n');
+    readline.question('Please press Enter to begin...');
+  }
+
+
+  displayGoodbyeMessage() {
+    console.clear();
+    console.log('Thanks for playing.\nHave a nice day :)');
   }
 }
 
