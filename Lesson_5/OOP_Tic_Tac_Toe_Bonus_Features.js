@@ -141,7 +141,7 @@ class TTTGame {
     this.computer = new Computer();
     this.player1Move = this.humanMoves;
     this.player2Move = this.computerMoves;
-    this.round = 4;
+    this.round = 1;
   }
 
   play() {
@@ -160,7 +160,7 @@ class TTTGame {
 
       this.updateGameStats();
       this.displayResults();
-      if (!this.gameWinner()) {
+      if (this.gameWinner() === 'none') {
         this.roundReset();
         continue;
       }
@@ -233,7 +233,7 @@ class TTTGame {
       console.log(`Round ${this.round} ends in a tie. How boring`);
     }
 
-    if (!this.gameWinner()) {
+    if (this.gameWinner() === 'none') {
       readline.question('\nPress Enter to continue to next round.');
     }
   }
@@ -320,7 +320,7 @@ class TTTGame {
         result = 'computer';
       }
     } else {
-      result = false;
+      result = 'none';
     }
     return result;
   }
